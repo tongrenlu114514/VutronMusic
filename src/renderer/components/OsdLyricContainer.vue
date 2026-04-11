@@ -17,7 +17,7 @@
       class="lyric"
       :class="{
         active: index === highlightIdx,
-        played: index < highlightIdx,
+        played: index < highlightIdx && !(isShowingNextGroup && index === 0),
         center: lyricToShow.length === 1
       }"
     >
@@ -89,9 +89,21 @@ const lyricToShow = computed(() => {
   if (!isMini.value) return lyrics.value
 
   const idx = currentGroupIndex.value
-  const result = groupLyric.value[idx]
-    ? groupLyric.value[idx].map((index) => lyrics.value[index])
-    : []
+  const currentGroup = groupLyric.value[idx] ?? []
+
+  if (
+    mode.value === 'twoLines' &&
+    currentGroup.length === 2 &&
+    currentGroup[1] === highlight.value
+  ) {
+    const nextGroup = groupLyric.value[idx + 1]
+    if (nextGroup?.[0] !== undefined) {
+      return [lyrics.value[nextGroup[0]], lyrics.value[currentGroup[1]]]
+    }
+    return [lyrics.value[currentGroup[1]]]
+  }
+
+  const result = currentGroup.map((index) => lyrics.value[index])
   return result
 })
 
@@ -137,7 +149,25 @@ const highlight = computed(() => Math.min(currentIndex.value, lyrics.value.lengt
 
 const highlightIdx = computed(() => {
   if (!isMini.value) return highlight.value
-  return groupLyric.value[currentGroupIndex.value].findIndex((id) => id === highlight.value)
+
+  const currentIdx = highlight.value
+  for (let i = 0; i < lyricToShow.value.length; i++) {
+    if (lyricToShow.value[i] === lyrics.value[currentIdx]) {
+      return i
+    }
+  }
+
+  const currentGroup = groupLyric.value[currentGroupIndex.value]
+  if (!currentGroup) return -1
+  return currentGroup.findIndex((id) => id === currentIdx)
+})
+
+const isShowingNextGroup = computed(() => {
+  if (!isMini.value || mode.value !== 'twoLines' || lyricToShow.value.length < 2) return false
+
+  const idx = currentGroupIndex.value
+  const nextGroup = groupLyric.value[idx + 1]
+  return nextGroup && lyricToShow.value[0] === lyrics.value[nextGroup[0]]
 })
 
 const clearAnimations = (clearAll = true) => {
